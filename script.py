@@ -13,7 +13,7 @@ def is_success(username_payload, password="x"):
         "p": password
     })
 
-    with urllib.request.urlopen(f"{BASE_URL}?{query}") as response:
+    with urllib.request.urlopen("{}?{}".format(BASE_URL, query)) as response:
         html = response.read().decode()
 
     return SUCCESS_MARKER in html
